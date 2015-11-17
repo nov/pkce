@@ -1,0 +1,23 @@
+# -*- coding: utf-8 -*-
+$:.unshift("/Library/RubyMotion/lib")
+require 'motion/project/template/ios'
+
+begin
+  require 'bundler'
+  Bundler.require
+rescue LoadError
+end
+
+Motion::Project::App.setup do |app|
+  # Use `rake config' to see complete project settings.
+  app.name = 'PKCE Client for iOS'
+  app.identifier = 'jp.yauth.pkce'
+  app.frameworks << 'SafariServices'
+  app.info_plist['CFBundleURLTypes'] = [{
+    'CFBundleURLSchemes' => ['com.googleusercontent.apps.38576672693-tjq8f59ku41h2eb73ohir0r6m4lkb159']
+  }]
+end
+
+IB::RakeTask.new do |project|
+  # you can customize the IB::Project here
+end
