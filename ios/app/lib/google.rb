@@ -22,8 +22,9 @@ module PKCEGoogle
         scope:                 [:openid, :email].collect(&:to_s).join(' '),
         state:                 state(:force_regenerate),
         nonce:                 state,
-        code_challenge:        code_challenge(:force_regenerate),
-        code_challenge_method: :S256,
+        # code_challenge:        code_challenge(:force_regenerate),
+        # code_challenge_method: :S256,
+        verifier:              code_verifier(:force_regenerate),
         redirect_uri:          config[:redirect_uri]
       }.merge(params).to_query
     ].join('?').nsurl
@@ -59,7 +60,8 @@ module PKCEGoogle
         code:          params[:code],
         client_id:     config[:client_id],
         redirect_uri:  config[:redirect_uri],
-        code_verifier: code_verifier
+        # code_verifier: code_verifier
+        verifier:      code_verifier
       }.to_query
       BW::HTTP.post config[:token_endpoint], {payload: payload} do |response|
         block.call response
