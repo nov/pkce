@@ -12,4 +12,8 @@ class PKCERootViewController < UIViewController
       completion: nil
     )
   end
+
+  def popup(message)
+    App.alert message
+  end
 end

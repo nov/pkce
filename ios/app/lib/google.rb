@@ -51,7 +51,7 @@ module PKCEGoogle
     end
   end
 
-  def handle(callback_url)
+  def handle(callback_url, &block)
     params = callback_url.queryParameters.with_indifferent_access
     if state == params[:state]
       payload = {
@@ -62,7 +62,7 @@ module PKCEGoogle
         code_verifier: code_verifier
       }.to_query
       BW::HTTP.post config[:token_endpoint], {payload: payload} do |response|
-        puts response.body
+        block.call response
       end
     else
       raise 'CSRF Attack Detected'
