@@ -12,7 +12,8 @@ Motion::Project::App.setup do |app|
   # Use `rake config' to see complete project settings.
   app.name = 'PKCE'
   app.identifier = 'jp.yauth.pkce'
-  app.frameworks << 'SafariServices'
+  app.frameworks += ['SafariServices', 'Security']
+  app.vendor_project 'vendor/CryptoExercise', :static, headers_dir: 'Classes'
   app.info_plist.merge!(
     CFBundleURLTypes: [{
       CFBundleURLSchemes: ['com.googleusercontent.apps.38576672693-tjq8f59ku41h2eb73ohir0r6m4lkb159']
