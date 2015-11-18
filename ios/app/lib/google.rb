@@ -9,12 +9,12 @@ module PKCEGoogle
       userinfo_endpoint:      'https://www.googleapis.com/oauth2/v3/userinfo',
       jwks_uri:               'https://www.googleapis.com/oauth2/v3/certs',
       client_id:              '38576672693-tjq8f59ku41h2eb73ohir0r6m4lkb159.apps.googleusercontent.com',
-      redirect_uri:           'com.googleusercontent.apps.38576672693-tjq8f59ku41h2eb73ohir0r6m4lkb159:/oauth2Callback'.nsurl
+      redirect_uri:           'com.googleusercontent.apps.38576672693-tjq8f59ku41h2eb73ohir0r6m4lkb159:/oauth2Callback'
     }
   end
 
   def authorization_url(params = {})
-    [
+    x = [
       config[:authorization_endpoint],
       {
         response_type:         :code,
@@ -28,6 +28,8 @@ module PKCEGoogle
         redirect_uri:          config[:redirect_uri]
       }.merge(params).to_query
     ].join('?').nsurl
+    puts x
+    x
   end
 
   def state(force_regenerate = false)
@@ -48,7 +50,7 @@ module PKCEGoogle
 
   def can_handle?(callback_url)
     [:scheme, :host, :path].all? do |segment|
-      callback_url.send(segment) == PKCEGoogle.config[:redirect_uri].send(segment)
+      callback_url.send(segment) == PKCEGoogle.config[:redirect_uri].nsurl.send(segment)
     end
   end
 
@@ -62,12 +64,22 @@ module PKCEGoogle
         redirect_uri:  config[:redirect_uri],
         # code_verifier: code_verifier
         verifier:      code_verifier
-      }.to_query
-      BW::HTTP.post config[:token_endpoint], {payload: payload} do |response|
-        block.call response
+      }
+      AFMotion::HTTP.post config[:token_endpoint], payload do |response|
+        if response.success?
+          token_response = BW::JSON.parse(response.object).with_indifferent_access
+          p token_response
+          block.call "#{token_response.keys.join(', ')} given"
+        else
+          block.call 'Token Request Failed'
+        end
       end
     else
-      raise 'CSRF Attack Detected'
+      block.call 'CSRF Attack Detected'
     end
+  end
+
+  def refresh!
+
   end
 end

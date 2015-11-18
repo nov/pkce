@@ -9,9 +9,10 @@ class AppDelegate
   end
 
   def application(application, openURL: url, sourceApplication: sourceApplication, annotation: annotation)
+    puts url
     if PKCEGoogle.can_handle?(url)
-      PKCEGoogle.handle url do |response|
-        application application, didFinishLaunchingWithOptions: {popup: response.body.to_s}
+      PKCEGoogle.handle url do |message|
+        application application, didFinishLaunchingWithOptions: {popup: message}
       end
     end
   end
