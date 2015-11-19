@@ -55,55 +55,63 @@ module PKCEGoogle
 
   def handle(callback_url, &block)
     # NOTE: handling query & fragment params in same code.
-    params = callback_url.to_s.sub('#', '?').nsurl.queryParameters.with_indifferent_access
-    if state == params[:state]
-      puts params
-      if params[:code]
-        payload = {
-          grant_type:    :authorization_code,
-          code:          params[:code],
-          client_id:     config[:client_id],
-          redirect_uri:  config[:redirect_uri],
-          # code_verifier: code_verifier
-          verifier:      code_verifier
-        }
-        AFMotion::HTTP.post config[:token_endpoint], payload do |response|
-          if response.success?
-            token_response = BW::JSON.parse(response.object).with_indifferent_access
-            p token_response
-            if token_response[:refresh_token]
-              payload = {
-                grant_type:    :refresh_token,
-                refresh_token: token_response[:refresh_token],
-                client_id:     config[:client_id],
-                redirect_uri:  config[:redirect_uri],
-                # code_verifier: code_verifier
-                # verifier:      code_verifier
-              }
-              AFMotion::HTTP.post config[:token_endpoint], payload do |response|
-                refresh_response = BW::JSON.parse(response.object).with_indifferent_access
-                p refresh_response
-                block.call [
-                  "#{params.keys.join(', ')} given",
-                  "#{token_response.keys.join(', ')} given",
-                  "#{refresh_response.keys.join(', ')} given"
-                ].join("\n-----\n")
-              end
-            else
-              block.call [
-                "#{(params.keys).join(', ')} given",
-                "#{(token_response.keys).join(', ')} given"
-              ].join("\n-----\n")
+    authz_response = callback_url.to_s.sub('#', '?').nsurl.queryParameters.with_indifferent_access
+    if state == authz_response[:state]
+      puts '# AuthZ Response'
+      p authz_response
+      if authz_response[:code]
+        exchange_code! authz_response[:code] do |token_response|
+          puts '# Token Response'
+          p token_response
+          if token_response[:refresh_token]
+            refresh_token! token_response[:refresh_token] do |refresh_response|
+              puts '# Refresh Response'
+              p refresh_response
+              block.call summarize(authz_response, token_response, refresh_response)
             end
           else
-            block.call 'Token Request Failed'
+            block.call summarize(authz_response, token_response)
           end
         end
       else
-        block.call "#{params.keys.join(', ')} given"
+        block.call summarize(authz_response)
       end
     else
       block.call 'CSRF Attack Detected'
     end
+  end
+
+  def exchange_code!(code, &block)
+    payload = {
+      grant_type:    :authorization_code,
+      code:          code,
+      client_id:     config[:client_id],
+      redirect_uri:  config[:redirect_uri],
+      # code_verifier: code_verifier
+      verifier:      code_verifier
+    }
+    AFMotion::HTTP.post config[:token_endpoint], payload do |response|
+      block.call BW::JSON.parse(response.object).with_indifferent_access
+    end
+  end
+
+  def refresh_token!(refresh_token, &block)
+    payload = {
+      grant_type:    :refresh_token,
+      refresh_token: refresh_token,
+      client_id:     config[:client_id],
+      redirect_uri:  config[:redirect_uri],
+      # code_verifier: code_verifier
+      # verifier:      code_verifier
+    }
+    AFMotion::HTTP.post config[:token_endpoint], payload do |response|
+      block.call BW::JSON.parse(response.object).with_indifferent_access
+    end
+  end
+
+  def summarize(*responses)
+    responses.collect(&:keys).collect do |keys|
+      "#{keys.join(', ')} given"
+    end.join("\n-----\n")
   end
 end
