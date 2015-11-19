@@ -71,10 +71,30 @@ module PKCEGoogle
           if response.success?
             token_response = BW::JSON.parse(response.object).with_indifferent_access
             p token_response
-            block.call [
-              "#{(params.keys).join(', ')} given from AuthZ Endpoint",
-              "#{(token_response.keys).join(', ')} given from Token Endpoint"
-            ].join("\n")
+            if token_response[:refresh_token]
+              payload = {
+                grant_type:    :refresh_token,
+                refresh_token: token_response[:refresh_token],
+                client_id:     config[:client_id],
+                redirect_uri:  config[:redirect_uri],
+                # code_verifier: code_verifier
+                # verifier:      code_verifier
+              }
+              AFMotion::HTTP.post config[:token_endpoint], payload do |response|
+                refresh_response = BW::JSON.parse(response.object).with_indifferent_access
+                p refresh_response
+                block.call [
+                  "#{params.keys.join(', ')} given",
+                  "#{token_response.keys.join(', ')} given",
+                  "#{refresh_response.keys.join(', ')} given"
+                ].join("\n-----\n")
+              end
+            else
+              block.call [
+                "#{(params.keys).join(', ')} given",
+                "#{(token_response.keys).join(', ')} given"
+              ].join("\n-----\n")
+            end
           else
             block.call 'Token Request Failed'
           end
@@ -85,9 +105,5 @@ module PKCEGoogle
     else
       block.call 'CSRF Attack Detected'
     end
-  end
-
-  def refresh!
-
   end
 end
