@@ -13,7 +13,12 @@ class PKCERootViewController < UIViewController
     )
   end
 
-  def popup(message)
-    App.alert message
+  def callback(url)
+    puts url
+    if PKCEGoogle.can_handle?(url)
+      PKCEGoogle.handle url do |message|
+        App.alert message
+      end
+    end
   end
 end
