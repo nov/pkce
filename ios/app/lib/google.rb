@@ -14,10 +14,10 @@ module PKCEGoogle
   end
 
   def authorization_url(params = {})
-    x = [
+    [
       config[:authorization_endpoint],
       {
-        response_type:         :code,
+        response_type:         [:code, :token, :id_token].collect(&:to_s).join(' '),
         client_id:             config[:client_id],
         scope:                 [:openid, :email].collect(&:to_s).join(' '),
         state:                 state(:force_regenerate),
@@ -25,11 +25,10 @@ module PKCEGoogle
         # code_challenge:        code_challenge(:force_regenerate),
         # code_challenge_method: :S256,
         verifier:              code_verifier(:force_regenerate),
-        redirect_uri:          config[:redirect_uri]
+        redirect_uri:          config[:redirect_uri],
+        # prompt: :none
       }.merge(params).to_query
     ].join('?').nsurl
-    puts x
-    x
   end
 
   def state(force_regenerate = false)
@@ -55,24 +54,33 @@ module PKCEGoogle
   end
 
   def handle(callback_url, &block)
-    params = callback_url.queryParameters.with_indifferent_access
+    # NOTE: handling query & fragment params in same code.
+    params = callback_url.to_s.sub('#', '?').nsurl.queryParameters.with_indifferent_access
     if state == params[:state]
-      payload = {
-        grant_type:    :authorization_code,
-        code:          params[:code],
-        client_id:     config[:client_id],
-        redirect_uri:  config[:redirect_uri],
-        # code_verifier: code_verifier
-        verifier:      code_verifier
-      }
-      AFMotion::HTTP.post config[:token_endpoint], payload do |response|
-        if response.success?
-          token_response = BW::JSON.parse(response.object).with_indifferent_access
-          p token_response
-          block.call "#{token_response.keys.join(', ')} given"
-        else
-          block.call 'Token Request Failed'
+      puts params
+      if params[:code]
+        payload = {
+          grant_type:    :authorization_code,
+          code:          params[:code],
+          client_id:     config[:client_id],
+          redirect_uri:  config[:redirect_uri],
+          # code_verifier: code_verifier
+          verifier:      code_verifier
+        }
+        AFMotion::HTTP.post config[:token_endpoint], payload do |response|
+          if response.success?
+            token_response = BW::JSON.parse(response.object).with_indifferent_access
+            p token_response
+            block.call [
+              "#{(params.keys).join(', ')} given from AuthZ Endpoint",
+              "#{(token_response.keys).join(', ')} given from Token Endpoint"
+            ].join("\n")
+          else
+            block.call 'Token Request Failed'
+          end
         end
+      else
+        block.call "#{params.keys.join(', ')} given"
       end
     else
       block.call 'CSRF Attack Detected'
