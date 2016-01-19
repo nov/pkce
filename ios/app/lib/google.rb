@@ -17,14 +17,13 @@ module PKCEGoogle
     [
       config[:authorization_endpoint],
       {
-        response_type:         [:code, :token, :id_token].collect(&:to_s).join(' '),
+        response_type:         :code,
         client_id:             config[:client_id],
         scope:                 [:openid, :email].collect(&:to_s).join(' '),
         state:                 state(:force_regenerate),
         nonce:                 state,
-        # code_challenge:        code_challenge(:force_regenerate),
-        # code_challenge_method: :S256,
-        verifier:              code_verifier(:force_regenerate),
+        code_challenge:        code_challenge(:force_regenerate),
+        code_challenge_method: :S256,
         redirect_uri:          config[:redirect_uri],
         # prompt: :none
       }.merge(params).to_query
@@ -87,8 +86,7 @@ module PKCEGoogle
       code:          code,
       client_id:     config[:client_id],
       redirect_uri:  config[:redirect_uri],
-      # code_verifier: code_verifier
-      verifier:      code_verifier
+      code_verifier: code_verifier
     }
     AFMotion::HTTP.post config[:token_endpoint], payload do |response|
       block.call BW::JSON.parse(response.object).with_indifferent_access
@@ -100,9 +98,7 @@ module PKCEGoogle
       grant_type:    :refresh_token,
       refresh_token: refresh_token,
       client_id:     config[:client_id],
-      redirect_uri:  config[:redirect_uri],
-      # code_verifier: code_verifier
-      # verifier:      code_verifier
+      redirect_uri:  config[:redirect_uri]
     }
     AFMotion::HTTP.post config[:token_endpoint], payload do |response|
       block.call BW::JSON.parse(response.object).with_indifferent_access
